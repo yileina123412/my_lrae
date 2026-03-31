@@ -20,6 +20,9 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/voxel_grid.h>
 #include <std_msgs/Float32.h>
+
+#include <atomic>
+#include <mutex>
 class SlamOutput {
 public:
     ros::NodeHandle nh_;
@@ -62,8 +65,13 @@ public:
 
     void execute(const ros::TimerEvent&); 
 
-    sensor_msgs::PointCloud2ConstPtr scanIn_;
-    tf::StampedTransform ST_B_Bi_;
+    // Latest synchronized frame cache (producer: pointCloudOdomCallback, consumer: execute timer)
+    std::mutex latest_mutex_;  // 保护最新帧数据的互斥锁
+    sensor_msgs::PointCloud2ConstPtr latest_scan_;     // 最新的点云数据
+    tf::StampedTransform latest_tf_;    // 最新的位姿变换
+    ros::Time latest_stamp_;    // 最新的时间戳
+    uint32_t latest_seq_ = 0;
+    std::atomic<bool> latest_ready_{false};
     
     SlamOutput(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private);
 

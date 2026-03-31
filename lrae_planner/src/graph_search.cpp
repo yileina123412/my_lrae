@@ -164,6 +164,13 @@ bool GraphSearch::Search(int startX, int startY, int goalX, int goalY, unsigned 
 {
   width_ = width;
   height_ = height;
+  // 先计算网格大小：给后面的预分配用
+  const size_t grid_size = static_cast<size_t>(width_) * static_cast<size_t>(height_);
+  // 闭表改成可复用 vector（替代每次 calloc/free）
+  if (closed_iter_.size() != grid_size)
+  {
+    closed_iter_.assign(grid_size, 0u);
+  }
   if (openList2D_ == NULL) 
   {
     openList2D_ = new CIntHeap(width * height);
@@ -195,8 +202,8 @@ bool GraphSearch::Search(int startX, int startY, int goalX, int goalY, unsigned 
   key = searchExpState->g + heuristic(startX, startY, goalX, goalY) +  0 * occMap[startX][startY]; 
 
   openList2D_->insertheap(searchExpState, key);
-  char* pbClosed = (char*)calloc(1, width_ * height_);
   expands.clear();
+  expands.reserve(grid_size);
   while (!openList2D_->emptyheap() && std::min(INFINITECOST, search2DGoalState->g) > openList2D_->getminkeyheap())
   {
     searchExpState = dynamic_cast<Grid2DSearchState*>(openList2D_->deleteminheap()); 
@@ -204,7 +211,7 @@ bool GraphSearch::Search(int startX, int startY, int goalX, int goalY, unsigned 
     int exp_x = searchExpState->x;
     int exp_y = searchExpState->y;
     expands.push_back(PointInt(exp_x, exp_y));
-    pbClosed[exp_x + width_ * exp_y] = 1;
+    closed_iter_[static_cast<size_t>(exp_x) + static_cast<size_t>(width_) * static_cast<size_t>(exp_y)] = static_cast<uint32_t>(iteration_);
     unsigned char expcost = occMap[exp_x][exp_y];
     for (int dir = 0; dir < 8; dir++)
     {
@@ -213,7 +220,7 @@ bool GraphSearch::Search(int startX, int startY, int goalX, int goalY, unsigned 
       if (!withinMap(newx, newy)) 
         continue;
 
-      if (pbClosed[newx + width_ * newy] == 1) 
+      if (closed_iter_[static_cast<size_t>(newx) + static_cast<size_t>(width_) * static_cast<size_t>(newy)] == static_cast<uint32_t>(iteration_))
         continue;
       int mapcost = std::max(occMap[newx][newy], expcost); 
       if (mapcost >= obsthresh) 
@@ -267,10 +274,10 @@ bool GraphSearch::Search(int startX, int startY, int goalX, int goalY, unsigned 
     }  
   }   
 
-  free(pbClosed);  
   // printf("Path cost=%d\n", search2DGoalState->g);
   pathCost = search2DGoalState->g;
   path.clear();
+  path.reserve(grid_size);
   searchPredState = search2DGoalState;
   path.push_back(PointInt(searchPredState->x, searchPredState->y)); 
   while (searchPredState->predecessor != NULL) 
@@ -287,6 +294,12 @@ bool GraphSearch::SearchforCost(int startX, int startY, int goalX, int goalY, na
 {
   width_ = width;
   height_ = height;
+
+  const size_t grid_size = static_cast<size_t>(width_) * static_cast<size_t>(height_);
+  if (for_cost_closed_iter_.size() != grid_size)
+  {
+    for_cost_closed_iter_.assign(grid_size, 0u);
+  }
   if (forCostopenList2D_ == NULL) 
   {
     forCostopenList2D_ = new CIntHeap(width * height);
@@ -320,7 +333,6 @@ bool GraphSearch::SearchforCost(int startX, int startY, int goalX, int goalY, na
   searchExpState->g = 0;
   key = searchExpState->g + heuristic(startX, startY, goalX, goalY); 
   forCostopenList2D_->insertheap(searchExpState, key);
-  char* pbClosed = (char*)calloc(1, width_ * height_);
 
   while (!forCostopenList2D_->emptyheap() && std::min(INFINITECOST, search2DGoalState->g) > forCostopenList2D_->getminkeyheap())
   {
@@ -328,7 +340,7 @@ bool GraphSearch::SearchforCost(int startX, int startY, int goalX, int goalY, na
     numofExpands++;
     int exp_x = searchExpState->x;
     int exp_y = searchExpState->y;
-    pbClosed[exp_x + width_ * exp_y] = 1;
+    for_cost_closed_iter_[static_cast<size_t>(exp_x) + static_cast<size_t>(width_) * static_cast<size_t>(exp_y)] = static_cast<uint32_t>(forCostiteration_);
     int expcost = occMap.data[exp_x + exp_y * width_];
     for (int dir = 0; dir < 8; dir++)
     {
@@ -336,7 +348,8 @@ bool GraphSearch::SearchforCost(int startX, int startY, int goalX, int goalY, na
       int newy = exp_y + dy_[dir];
       if (!withinMap(newx, newy)) 
         continue;
-      if (pbClosed[newx + width_ * newy] == 1) 
+
+      if (for_cost_closed_iter_[static_cast<size_t>(newx) + static_cast<size_t>(width_) * static_cast<size_t>(newy)] == static_cast<uint32_t>(forCostiteration_))
         continue;
       int mapcost;
       if(expcost > occMap.data[newx + newy * width_])
@@ -364,7 +377,6 @@ bool GraphSearch::SearchforCost(int startX, int startY, int goalX, int goalY, na
     }  
   }  
 
-  free(pbClosed); 
   pathCost = search2DGoalState->g;
   return true;
 }
@@ -374,6 +386,12 @@ bool GraphSearch::SearchforNearCen(int startX, int startY, int goalX, int goalY,
 {
   width_ = width;
   height_ = height;
+
+  const size_t grid_size = static_cast<size_t>(width_) * static_cast<size_t>(height_);
+  if (for_cost_closed_iter_.size() != grid_size)
+  {
+    for_cost_closed_iter_.assign(grid_size, 0u);
+  }
   if (forCostopenList2D_ == NULL) 
   {
     forCostopenList2D_ = new CIntHeap(width * height);
@@ -407,7 +425,6 @@ bool GraphSearch::SearchforNearCen(int startX, int startY, int goalX, int goalY,
   searchExpState->g = 0;
   key = searchExpState->g + heuristic(startX, startY, goalX, goalY); 
   forCostopenList2D_->insertheap(searchExpState, key);
-  char* pbClosed = (char*)calloc(1, width_ * height_);
 
   while (!forCostopenList2D_->emptyheap() && std::min(INFINITECOST, search2DGoalState->g) > forCostopenList2D_->getminkeyheap())
   {
@@ -415,7 +432,7 @@ bool GraphSearch::SearchforNearCen(int startX, int startY, int goalX, int goalY,
     numofExpands++;
     int exp_x = searchExpState->x;
     int exp_y = searchExpState->y;
-    pbClosed[exp_x + width_ * exp_y] = 1;
+    for_cost_closed_iter_[static_cast<size_t>(exp_x) + static_cast<size_t>(width_) * static_cast<size_t>(exp_y)] = static_cast<uint32_t>(forCostiteration_);
     int expcost = occMap.data[exp_x + exp_y * width_];
     for (int dir = 0; dir < 8; dir++)
     {
@@ -423,7 +440,8 @@ bool GraphSearch::SearchforNearCen(int startX, int startY, int goalX, int goalY,
       int newy = exp_y + dy_[dir];
       if (!withinMap(newx, newy)) 
         continue;
-      if (pbClosed[newx + width_ * newy] == 1) 
+
+      if (for_cost_closed_iter_[static_cast<size_t>(newx) + static_cast<size_t>(width_) * static_cast<size_t>(newy)] == static_cast<uint32_t>(forCostiteration_))
         continue;
       int mapcost;
       if(expcost > occMap.data[newx + newy * width_])
@@ -451,10 +469,10 @@ bool GraphSearch::SearchforNearCen(int startX, int startY, int goalX, int goalY,
     }  
   }   
 
-  free(pbClosed); 
   pathCost = search2DGoalState->g;
 
   path.clear();
+  path.reserve(grid_size);
   searchPredState = search2DGoalState;
   path.push_back(PointInt(searchPredState->x, searchPredState->y)); 
   while (searchPredState->predecessor != NULL) 

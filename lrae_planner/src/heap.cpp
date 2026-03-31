@@ -42,7 +42,9 @@ CIntHeap::CIntHeap()
 {
   percolates = 0;
   currentsize = 0;
-  allocated = HEAPSIZE_INIT;
+  allocated = HEAPSIZE_INIT + 1; // heap is 1-indexed
+  if (allocated > HEAPSIZE)
+    allocated = HEAPSIZE;
 
   heap = new heapintelement[allocated]; 
 }
@@ -51,7 +53,9 @@ CIntHeap::CIntHeap(int initial_size)
 {
   percolates = 0;
   currentsize = 0;
-  allocated = initial_size;
+  allocated = initial_size + 1; // heap is 1-indexed
+  if (allocated > HEAPSIZE)
+    allocated = HEAPSIZE;
 
   heap = new heapintelement[allocated];
 }

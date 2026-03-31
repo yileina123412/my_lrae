@@ -4,6 +4,8 @@
 #include "planner_interface.h"
 #include "heap.h"
 #include <cmath>
+#include <cstdint>
+#include <vector>
 
 class Grid2DSearchState : public AbstractSearchState
 {
@@ -72,6 +74,10 @@ private:
   int forCostiteration_;
   bool forCostcreateSearchStates2D();
   void forCostinitializeSearchState2D(Grid2DSearchState* state2D);
+
+  // Closed list as iteration-stamped array to avoid per-search allocation/reset.
+  std::vector<uint32_t> closed_iter_;
+  std::vector<uint32_t> for_cost_closed_iter_;
 
 };
 
